@@ -1,0 +1,5 @@
+[wrap-git]
+url = https://gitlab.freedesktop.org/mesa/mesa.git
+revision = mesa-26.3.0
+depth = 1
+diff_files = mesa/0001-Add-nak-standalone-option.patch
