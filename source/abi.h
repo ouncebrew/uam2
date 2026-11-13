@@ -1,0 +1,29 @@
+#pragma once
+
+// Shader ABI used by drako3d on the Switch 2
+
+#define DK_NUM_UNIFORM_BUFS     16
+#define DK_NUM_STORAGE_BUFS     16
+#define DK_NUM_TEXTURE_BINDINGS 32
+#define DK_NUM_IMAGE_BINDINGS   8
+
+#define UAM2_DRIVER_CBUF      0
+#define UAM2_DATA_CBUF        1
+#define UAM2_HANDLE_CBUF      2
+#define UAM2_FIRST_USER_CBUF  3
+
+#define UAM2_BUF_DESC_SIZE    0x10
+
+#define UAM2_TEXTURE_HANDLE_OFFSET(_id) (0x20  + (_id)*8)
+#define UAM2_IMAGE_HANDLE_OFFSET(_id)   (0x120 + (_id)*8)
+
+#define UAM2_GFX_STORAGE_DESC_OFFSET(_stage, _id) (0x10 + ((_stage)+1)*DK_NUM_STORAGE_BUFS*UAM2_BUF_DESC_SIZE + (_id)*UAM2_BUF_DESC_SIZE)
+#define UAM2_GFX_BASE_VERTEX_OFFSET   0x640
+#define UAM2_GFX_BASE_INSTANCE_OFFSET 0x644
+#define UAM2_GFX_DRAW_ID_OFFSET       0x648
+
+#define UAM2_CS_GRID_SIZE_OFFSET         0x000
+#define UAM2_CS_UNIFORM_DESC_OFFSET(_id) (0x010 + (_id)*UAM2_BUF_DESC_SIZE)
+#define UAM2_CS_STORAGE_DESC_OFFSET(_id) (0x110 + (_id)*UAM2_BUF_DESC_SIZE)
+
+#define UAM2_CS_NUM_UBO_CBUFS 5

@@ -85,7 +85,18 @@ bool uam2_compile_spirv(const uint32_t* words, size_t num_words, enum uam2_stage
 		.lower_local_invocation_index = true,
 	};
 	NIR_PASS(_, nir, nir_lower_compute_system_values, &csv_opts);
+
+	NIR_PASS(_, nir, nir_opt_large_constants, NULL, 32);
+	NIR_PASS(_, nir, nir_lower_load_const_to_scalar);
+
+	NIR_PASS(_, nir, nir_lower_ssbo, NULL);
 	NIR_PASS(_, nir, nir_lower_explicit_io, nir_var_mem_global, nir_address_format_64bit_global);
+
+	if (!uam2_lower_abi(nir))
+	{
+		ralloc_free(nir);
+		return false;
+	}
 
 	if (mesa_shader_stage_uses_workgroup(nir->info.stage))
 	{
@@ -96,11 +107,19 @@ bool uam2_compile_spirv(const uint32_t* words, size_t num_words, enum uam2_stage
 	nak_lower_nir_before_linking(nir, s_nak);
 	nir->info.io_lowered = true;
 
+	if (nir->constant_data_size)
+	{
+		out->data = malloc(nir->constant_data_size);
+		memcpy(out->data, nir->constant_data, nir->constant_data_size);
+		out->data_size = nir->constant_data_size;
+	}
+
 	struct nak_shader_bin* bin = nak_compile_shader(nir, dump_asm, s_nak, 0, NULL, false);
 	ralloc_free(nir);
 	if (!bin)
 	{
 		fprintf(stderr, "error: NAK compilation failed\n");
+		uam2_program_free(out);
 		return false;
 	}
 
