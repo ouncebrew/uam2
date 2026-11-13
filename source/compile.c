@@ -14,10 +14,12 @@ void uam2_init(void)
 {
 	glsl_type_singleton_init_or_ref();
 	s_nak = nak_compiler_create(&uam2_t239_device);
+	uam2_glsl_init(nak_nir_options(s_nak));
 }
 
 void uam2_exit(void)
 {
+	uam2_glsl_exit();
 	nak_compiler_destroy(s_nak);
 	s_nak = NULL;
 	glsl_type_singleton_decref();
@@ -44,40 +46,8 @@ static void shared_var_info(const struct glsl_type* type, unsigned* size, unsign
 	*align = comp_size;
 }
 
-bool uam2_compile_spirv(const uint32_t* words, size_t num_words, enum uam2_stage stage,
-	const char* entrypoint, bool dump_asm, struct uam2_program* out)
+static bool compile_nir(nir_shader* nir, enum uam2_stage stage, bool dump_asm, struct uam2_program* out)
 {
-	memset(out, 0, sizeof(*out));
-
-	if (stage != Uam2Stage_Compute)
-	{
-		fprintf(stderr, "error: only compute shaders are supported so far\n");
-		return false;
-	}
-
-	const struct spirv_to_nir_options spirv_opts =
-	{
-		.ssbo_addr_format = nir_address_format_64bit_global_32bit_offset,
-		.phys_ssbo_addr_format = nir_address_format_64bit_global,
-		.ubo_addr_format = nir_address_format_64bit_bounded_global,
-		.shared_addr_format = nir_address_format_32bit_offset,
-	};
-
-	nir_shader* nir = spirv_to_nir(words, num_words, NULL, to_mesa_stage(stage), entrypoint,
-		&spirv_opts, nak_nir_options(s_nak));
-	if (!nir)
-	{
-		fprintf(stderr, "error: SPIR-V to NIR translation failed\n");
-		return false;
-	}
-
-	NIR_PASS(_, nir, nir_lower_variable_initializers, nir_var_function_temp);
-	NIR_PASS(_, nir, nir_lower_returns);
-	NIR_PASS(_, nir, nir_inline_functions);
-	NIR_PASS(_, nir, nir_opt_copy_prop);
-	NIR_PASS(_, nir, nir_opt_deref);
-	nir_remove_non_entrypoints(nir);
-
 	nak_preprocess_nir(nir, s_nak);
 
 	const nir_lower_compute_system_values_options csv_opts =
@@ -143,6 +113,62 @@ bool uam2_compile_spirv(const uint32_t* words, size_t num_words, enum uam2_stage
 
 	nak_shader_bin_destroy(bin);
 	return true;
+}
+
+static bool check_stage(enum uam2_stage stage)
+{
+	if (stage != Uam2Stage_Compute)
+	{
+		fprintf(stderr, "error: only compute shaders are supported currently\n");
+		return false;
+	}
+	return true;
+}
+
+bool uam2_compile_glsl(const char* source, enum uam2_stage stage, bool dump_asm, struct uam2_program* out)
+{
+	memset(out, 0, sizeof(*out));
+	if (!check_stage(stage))
+		return false;
+
+	nir_shader* nir = uam2_glsl_to_nir(source, stage);
+	if (!nir)
+		return false;
+
+	return compile_nir(nir, stage, dump_asm, out);
+}
+
+bool uam2_compile_spirv(const uint32_t* words, size_t num_words, enum uam2_stage stage,
+	const char* entrypoint, bool dump_asm, struct uam2_program* out)
+{
+	memset(out, 0, sizeof(*out));
+	if (!check_stage(stage))
+		return false;
+
+	const struct spirv_to_nir_options spirv_opts =
+	{
+		.ssbo_addr_format = nir_address_format_64bit_global_32bit_offset,
+		.phys_ssbo_addr_format = nir_address_format_64bit_global,
+		.ubo_addr_format = nir_address_format_64bit_bounded_global,
+		.shared_addr_format = nir_address_format_32bit_offset,
+	};
+
+	nir_shader* nir = spirv_to_nir(words, num_words, NULL, to_mesa_stage(stage), entrypoint,
+		&spirv_opts, nak_nir_options(s_nak));
+	if (!nir)
+	{
+		fprintf(stderr, "error: SPIR-V to NIR translation failed\n");
+		return false;
+	}
+
+	NIR_PASS(_, nir, nir_lower_variable_initializers, nir_var_function_temp);
+	NIR_PASS(_, nir, nir_lower_returns);
+	NIR_PASS(_, nir, nir_inline_functions);
+	NIR_PASS(_, nir, nir_opt_copy_prop);
+	NIR_PASS(_, nir, nir_opt_deref);
+	nir_remove_non_entrypoints(nir);
+
+	return compile_nir(nir, stage, dump_asm, out);
 }
 
 void uam2_program_free(struct uam2_program* prog)

@@ -1,0 +1,13 @@
+diff --git a/src/compiler/glsl/glsl_parser_extras.cpp b/src/compiler/glsl/glsl_parser_extras.cpp
+index 0cc7e2f..fa397d0 100644
+--- a/src/compiler/glsl/glsl_parser_extras.cpp
++++ b/src/compiler/glsl/glsl_parser_extras.cpp
+@@ -2253,6 +2253,8 @@ add_builtin_defines(struct _mesa_glsl_parse_state *state,
+    unsigned gl_version = state->exts->Version;
+    gl_api api = state->api;
+ 
++   add_builtin_define(data, "DEKO3D", 200);
++
+    if (gl_version != 0xff) {
+       unsigned i;
+       for (i = 0; i < state->num_supported_versions; i++) {

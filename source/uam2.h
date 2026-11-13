@@ -9,6 +9,7 @@ extern "C" {
 
 struct nv_device_info;
 struct nir_shader;
+struct nir_shader_compiler_options;
 
 enum uam2_stage
 {
@@ -42,8 +43,13 @@ extern const struct nv_device_info uam2_t239_device;
 void uam2_init(void);
 void uam2_exit(void);
 
+void uam2_glsl_init(const struct nir_shader_compiler_options* options);
+void uam2_glsl_exit(void);
+struct nir_shader* uam2_glsl_to_nir(const char* source, enum uam2_stage stage);
+
 bool uam2_lower_abi(struct nir_shader* nir);
 
+bool uam2_compile_glsl(const char* source, enum uam2_stage stage, bool dump_asm, struct uam2_program* out);
 bool uam2_compile_spirv(const uint32_t* words, size_t num_words, enum uam2_stage stage,
 	const char* entrypoint, bool dump_asm, struct uam2_program* out);
 

@@ -109,20 +109,24 @@ int main(int argc, char* argv[])
 	long fsize = ftell(fin);
 	rewind(fin);
 
-	std::vector<uint32_t> words((fsize + 3) / 4);
+	std::vector<uint32_t> words((fsize + 4) / 4 + 1);
 	size_t readSize = fread(words.data(), 1, fsize, fin);
 	fclose(fin);
 
-	if (readSize != (size_t)fsize || fsize < 20 || (fsize & 3) || words[0] != 0x07230203)
+	if (readSize != (size_t)fsize)
 	{
-		fprintf(stderr, "Input is not a SPIR-V module (GLSL is not implemented yet)\n");
+		fprintf(stderr, "Could not read input file: %s\n", inFile);
 		return EXIT_FAILURE;
 	}
+
+	bool isSpirv = fsize >= 20 && !(fsize & 3) && words[0] == 0x07230203;
 
 	uam2_init();
 
 	uam2_program prog;
-	bool rc = uam2_compile_spirv(words.data(), words.size(), stage, "main", asmFile != nullptr, &prog);
+	bool rc = isSpirv
+		? uam2_compile_spirv(words.data(), fsize / 4, stage, "main", asmFile != nullptr, &prog)
+		: uam2_compile_glsl((const char*)words.data(), stage, asmFile != nullptr, &prog);
 	if (rc)
 	{
 		if (outFile)
