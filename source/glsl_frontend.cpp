@@ -38,9 +38,12 @@ void uam2_glsl_init(const struct nir_shader_compiler_options* options)
 	ctx->Version = 460;
 	ctx->Const.GLSLVersion = 460;
 	ctx->Const.NativeIntegers = GL_TRUE;
+	ctx->Const.GLSLFragCoordIsSysVal = true;
+	ctx->Const.GLSLPointCoordIsSysVal = true;
 	ctx->Const.GLSLFrontFacingIsSysVal = true;
 	ctx->Const.GLSLTessLevelsAsInputs = true;
 	ctx->Const.GenerateTemporaryNames = true;
+	ctx->Const.PointSizeFixed = true;
 
 	ctx->Extensions.ARB_ES3_compatibility = true;
 	ctx->Extensions.ARB_ES3_1_compatibility = true;
@@ -50,6 +53,7 @@ void uam2_glsl_init(const struct nir_shader_compiler_options* options)
 	ctx->Extensions.ARB_shader_ballot = true;
 	ctx->Extensions.ARB_shader_group_vote = true;
 	ctx->Extensions.ARB_shader_clock = true;
+	ctx->Extensions.ARB_shader_draw_parameters = true;
 	ctx->Extensions.ARB_shader_viewport_layer_array = true;
 	ctx->Extensions.ARB_post_depth_coverage = true;
 	ctx->Extensions.ARB_fragment_shader_interlock = false;

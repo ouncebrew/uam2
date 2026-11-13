@@ -34,6 +34,13 @@ struct uam2_program
 	uint32_t num_barriers;
 	uint32_t block_dims[3];
 	uint32_t shared_mem_size;
+	struct
+	{
+		bool writes_depth;
+		bool early_fragment_tests;
+		bool post_depth_coverage;
+		bool uses_sample_shading;
+	} fs;
 	uint32_t hdr[32];
 	char* asm_str;
 };

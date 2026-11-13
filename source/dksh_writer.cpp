@@ -22,6 +22,19 @@ namespace
 		buf.resize(Align256(buf.size()), 0);
 	}
 
+	constexpr unsigned SphImapPositionWWord = 5;
+	constexpr uint32_t SphImapPositionWBit = 1u << 31;
+	constexpr unsigned SphOmapTargetsWord = 18;
+
+	unsigned NumColorTargets(const uint32_t* sph)
+	{
+		unsigned count = 0;
+		for (unsigned i = 0; i < 8; i ++)
+			if ((sph[SphOmapTargetsWord] >> (4*i)) & 0xF)
+				count ++;
+		return count;
+	}
+
 	uint32_t ProgramType(uam2_stage stage)
 	{
 		switch (stage)
@@ -65,9 +78,24 @@ bool uam2_write_dksh(const char* path, const uam2_program* prog)
 		dkph.comp.num_barriers = prog->num_barriers;
 	}
 
+	uint32_t sph[32];
+	memcpy(sph, prog->hdr, sizeof(sph));
+
+	if (prog->stage == Uam2Stage_Fragment)
+	{
+		sph[SphImapPositionWWord] |= SphImapPositionWBit;
+
+		dkph.frag.early_fragment_tests  = prog->fs.early_fragment_tests;
+		dkph.frag.post_depth_coverage   = prog->fs.post_depth_coverage;
+		dkph.frag.persample_invocation = prog->fs.uses_sample_shading;
+		dkph.frag.param_65b             = prog->fs.writes_depth ? 0x11 : 0x00;
+		dkph.frag.param_489             = 0;
+		dkph.frag.param_d8              = !prog->fs.writes_depth && NumColorTargets(sph) >= 3 ? 0x20806080 : 0x087F6080;
+	}
+
 	std::vector<uint8_t> code;
 	if (sphSize)
-		Append(code, prog->hdr, sphSize);
+		Append(code, sph, sphSize);
 	Append(code, prog->code, prog->code_size);
 	Pad256(code);
 	if (prog->data_size)

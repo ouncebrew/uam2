@@ -56,6 +56,9 @@ static bool compile_nir(nir_shader* nir, enum uam2_stage stage, bool dump_asm, s
 	};
 	NIR_PASS(_, nir, nir_lower_compute_system_values, &csv_opts);
 
+	if (nir->info.stage == MESA_SHADER_FRAGMENT)
+		NIR_PASS(_, nir, nir_lower_fragcolor, 8);
+
 	NIR_PASS(_, nir, nir_opt_large_constants, NULL, 32);
 	NIR_PASS(_, nir, nir_lower_load_const_to_scalar);
 
@@ -107,6 +110,13 @@ static bool compile_nir(nir_shader* nir, enum uam2_stage stage, bool dump_asm, s
 			out->block_dims[i] = bin->info.cs.local_size[i];
 		out->shared_mem_size = bin->info.cs.smem_size;
 	}
+	else if (stage == Uam2Stage_Fragment)
+	{
+		out->fs.writes_depth = bin->info.fs.writes_depth;
+		out->fs.early_fragment_tests = bin->info.fs.early_fragment_tests;
+		out->fs.post_depth_coverage = bin->info.fs.post_depth_coverage;
+		out->fs.uses_sample_shading = bin->info.fs.uses_sample_shading;
+	}
 	memcpy(out->hdr, bin->info.hdr, sizeof(out->hdr));
 	if (bin->asm_str)
 		out->asm_str = strdup(bin->asm_str);
@@ -117,9 +127,9 @@ static bool compile_nir(nir_shader* nir, enum uam2_stage stage, bool dump_asm, s
 
 static bool check_stage(enum uam2_stage stage)
 {
-	if (stage != Uam2Stage_Compute)
+	if (stage != Uam2Stage_Compute && stage != Uam2Stage_Vertex && stage != Uam2Stage_Fragment)
 	{
-		fprintf(stderr, "error: only compute shaders are supported currently\n");
+		fprintf(stderr, "error: tessellation and geometry shaders are not supported yet\n");
 		return false;
 	}
 	return true;

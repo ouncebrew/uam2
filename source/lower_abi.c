@@ -136,6 +136,19 @@ static bool lower_intrinsic(nir_builder* b, nir_intrinsic_instr* intr, struct ab
 			return true;
 		}
 
+		case nir_intrinsic_load_base_vertex:
+		case nir_intrinsic_load_base_instance:
+		case nir_intrinsic_load_draw_id:
+		{
+			if (is_compute(b))
+				return false;
+			unsigned offset = intr->intrinsic == nir_intrinsic_load_base_vertex ? UAM2_GFX_BASE_VERTEX_OFFSET
+				: intr->intrinsic == nir_intrinsic_load_base_instance ? UAM2_GFX_BASE_INSTANCE_OFFSET
+				: UAM2_GFX_DRAW_ID_OFFSET;
+			nir_def_replace(&intr->def, ldc(b, 1, 32, UAM2_DRIVER_CBUF, nir_imm_int(b, offset)));
+			return true;
+		}
+
 		case nir_intrinsic_load_constant:
 		{
 			nir_def* offset = nir_iadd_imm(b, intr->src[0].ssa, nir_intrinsic_base(intr));
