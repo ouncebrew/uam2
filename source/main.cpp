@@ -82,12 +82,6 @@ int main(int argc, char* argv[])
 		return EXIT_FAILURE;
 	}
 
-	if (outFile)
-	{
-		fprintf(stderr, "DKSH output is not implemented yet\n");
-		return EXIT_FAILURE;
-	}
-
 	uam2_stage stage;
 	if (0) ((void)0);
 #define TEST_STAGE(_str,_val) else if (strcmp(stageName,(_str))==0) stage = (_val)
@@ -131,7 +125,10 @@ int main(int argc, char* argv[])
 	bool rc = uam2_compile_spirv(words.data(), words.size(), stage, "main", asmFile != nullptr, &prog);
 	if (rc)
 	{
-		if (rawFile)
+		if (outFile)
+			rc = uam2_write_dksh(outFile, &prog);
+
+		if (rc && rawFile)
 			rc = writeFile(rawFile, prog.code, prog.code_size);
 
 		if (rc && asmFile)

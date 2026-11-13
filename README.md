@@ -12,6 +12,7 @@ Options:
 ```
 
 UAM2 is the shader compiler for drako3.
+
 UAM2, unlike drako3d, does not try to maintain any backwards compatibility with UAM. UAM can
 and should be installed and used alongside UAM2 for Switch 1 support.
 
@@ -23,10 +24,18 @@ Switch 2.
 
 Currently supported:
 
-- SPIR-V input
-- Raw SM 8.6 code (`-r`) and NAK assembly (`-a`) output
+- GLSL and SPIR-V input (SPIR-V currently doesn't support uniform/storage blocks)
+- Compute shaders
+- DKSH output (`-o`), raw SM 8.6 code (`-r`), and NAK assembly (`-a`)
 
-Not yet implemented: GLSL input, DKSH output, the drako3d binding ABI, and the graphics stages.
+Not yet implemented: the graphics stages and SPIR-V descriptor bindings.
+
+## Differences with UAM
+
+- The `DEKO3D` preprocessor symbol is defined with a value of 200 (UAM uses 100)
+- In compute shaders, uniform buffers 0-4 are hardware constant buffers, while 5-15 are read through
+  their buffer descriptor.
+- The work group size must be a compile-time constant.
 
 ## Building
 
@@ -37,4 +46,3 @@ python3 with mako, flex, bison, SPIRV-Tools, zlib, zstd, libdrm, and expat.
 meson setup build
 ninja -C build
 ```
-

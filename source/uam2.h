@@ -21,11 +21,17 @@ enum uam2_stage
 
 struct uam2_program
 {
+	enum uam2_stage stage;
 	void* code;
 	uint32_t code_size;
+	void* data;
+	uint32_t data_size;
 	uint32_t num_gprs;
 	uint32_t num_instrs;
 	uint32_t slm_size;
+	uint32_t num_barriers;
+	uint32_t block_dims[3];
+	uint32_t shared_mem_size;
 	uint32_t hdr[32];
 	char* asm_str;
 };
@@ -39,6 +45,8 @@ bool uam2_compile_spirv(const uint32_t* words, size_t num_words, enum uam2_stage
 	const char* entrypoint, bool dump_asm, struct uam2_program* out);
 
 void uam2_program_free(struct uam2_program* prog);
+
+bool uam2_write_dksh(const char* path, const struct uam2_program* prog);
 
 #ifdef __cplusplus
 }

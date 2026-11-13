@@ -104,12 +104,20 @@ bool uam2_compile_spirv(const uint32_t* words, size_t num_words, enum uam2_stage
 		return false;
 	}
 
+	out->stage = stage;
 	out->code = malloc(bin->code_size);
 	memcpy(out->code, bin->code, bin->code_size);
 	out->code_size = bin->code_size;
 	out->num_gprs = bin->info.num_gprs;
 	out->num_instrs = bin->info.num_instrs;
 	out->slm_size = bin->info.slm_size;
+	out->num_barriers = bin->info.num_control_barriers;
+	if (stage == Uam2Stage_Compute)
+	{
+		for (unsigned i = 0; i < 3; i ++)
+			out->block_dims[i] = bin->info.cs.local_size[i];
+		out->shared_mem_size = bin->info.cs.smem_size;
+	}
 	memcpy(out->hdr, bin->info.hdr, sizeof(out->hdr));
 	if (bin->asm_str)
 		out->asm_str = strdup(bin->asm_str);
@@ -121,6 +129,7 @@ bool uam2_compile_spirv(const uint32_t* words, size_t num_words, enum uam2_stage
 void uam2_program_free(struct uam2_program* prog)
 {
 	free(prog->code);
+	free(prog->data);
 	free(prog->asm_str);
 	memset(prog, 0, sizeof(*prog));
 }
