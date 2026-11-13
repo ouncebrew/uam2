@@ -35,6 +35,28 @@ namespace
 		return count;
 	}
 
+	enum
+	{
+		TessDomain_Isoline = 0,
+		TessPrims_Points   = 0,
+		TessPrims_Lines    = 1,
+		TessPrims_TriCw    = 2,
+		TessPrims_TriCcw   = 3,
+	};
+
+	// The clockwise output mode yields counterclockwise triangles under deko3d's origin
+	uint32_t TessParams(const uam2_program* prog)
+	{
+		uint32_t prims;
+		if (prog->ts.point_mode)
+			prims = TessPrims_Points;
+		else if (prog->ts.domain == TessDomain_Isoline)
+			prims = TessPrims_Lines;
+		else
+			prims = prog->ts.ccw ? TessPrims_TriCw : TessPrims_TriCcw;
+		return prog->ts.domain | (prog->ts.spacing << 4) | (prims << 8);
+	}
+
 	uint32_t ProgramType(uam2_stage stage)
 	{
 		switch (stage)
@@ -77,6 +99,9 @@ bool uam2_write_dksh(const char* path, const uam2_program* prog)
 		dkph.comp.crs_sz = 0;
 		dkph.comp.num_barriers = prog->num_barriers;
 	}
+
+	if (prog->stage == Uam2Stage_TessEval)
+		dkph.tess_eval.param_c8 = TessParams(prog);
 
 	uint32_t sph[32];
 	memcpy(sph, prog->hdr, sizeof(sph));

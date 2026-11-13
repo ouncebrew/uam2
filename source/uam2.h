@@ -41,6 +41,13 @@ struct uam2_program
 		bool post_depth_coverage;
 		bool uses_sample_shading;
 	} fs;
+	struct
+	{
+		uint8_t domain;
+		uint8_t spacing;
+		bool ccw;
+		bool point_mode;
+	} ts;
 	uint32_t hdr[32];
 	char* asm_str;
 };

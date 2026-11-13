@@ -110,6 +110,13 @@ static bool compile_nir(nir_shader* nir, enum uam2_stage stage, bool dump_asm, s
 			out->block_dims[i] = bin->info.cs.local_size[i];
 		out->shared_mem_size = bin->info.cs.smem_size;
 	}
+	else if (stage == Uam2Stage_TessCtrl || stage == Uam2Stage_TessEval)
+	{
+		out->ts.domain = bin->info.ts.domain;
+		out->ts.spacing = bin->info.ts.spacing;
+		out->ts.ccw = bin->info.ts.ccw;
+		out->ts.point_mode = bin->info.ts.point_mode;
+	}
 	else if (stage == Uam2Stage_Fragment)
 	{
 		out->fs.writes_depth = bin->info.fs.writes_depth;
@@ -125,21 +132,9 @@ static bool compile_nir(nir_shader* nir, enum uam2_stage stage, bool dump_asm, s
 	return true;
 }
 
-static bool check_stage(enum uam2_stage stage)
-{
-	if (stage != Uam2Stage_Compute && stage != Uam2Stage_Vertex && stage != Uam2Stage_Fragment)
-	{
-		fprintf(stderr, "error: tessellation and geometry shaders are not supported yet\n");
-		return false;
-	}
-	return true;
-}
-
 bool uam2_compile_glsl(const char* source, enum uam2_stage stage, bool dump_asm, struct uam2_program* out)
 {
 	memset(out, 0, sizeof(*out));
-	if (!check_stage(stage))
-		return false;
 
 	nir_shader* nir = uam2_glsl_to_nir(source, stage);
 	if (!nir)
@@ -152,8 +147,6 @@ bool uam2_compile_spirv(const uint32_t* words, size_t num_words, enum uam2_stage
 	const char* entrypoint, bool dump_asm, struct uam2_program* out)
 {
 	memset(out, 0, sizeof(*out));
-	if (!check_stage(stage))
-		return false;
 
 	const struct spirv_to_nir_options spirv_opts =
 	{

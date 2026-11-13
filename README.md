@@ -25,10 +25,10 @@ Switch 2.
 Currently supported:
 
 - GLSL and SPIR-V input (SPIR-V currently doesn't support uniform/storage blocks)
-- Compute shaders
+- Vertex, tessellation control/evaluation, geometry, fragment, and compute shaders
 - DKSH output (`-o`), raw SM 8.6 code (`-r`), and NAK assembly (`-a`)
 
-Not yet implemented: the graphics stages and SPIR-V descriptor bindings.
+Not yet implemented: SPIR-V descriptor bindings.
 
 ## Differences with UAM
 
