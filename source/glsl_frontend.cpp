@@ -58,6 +58,8 @@ void uam2_glsl_init(const struct nir_shader_compiler_options* options)
 	ctx->Extensions.ARB_post_depth_coverage = true;
 	ctx->Extensions.ARB_fragment_shader_interlock = false;
 	ctx->Extensions.KHR_shader_subgroup = true;
+	ctx->Extensions.ARB_gpu_shader_int64 = true;
+	ctx->Extensions.NV_shader_atomic_int64 = true;
 
 	ctx->Const.MaxPatchVertices = 32;
 	ctx->Const.MaxClipPlanes = 8;
