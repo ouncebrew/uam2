@@ -76,6 +76,7 @@ bool uam2_compile_spirv(const uint32_t* words, size_t num_words, enum uam2_stage
 
 void uam2_program_free(struct uam2_program* prog);
 
+void* uam2_build_dksh(const struct uam2_program* prog, size_t* out_size);
 bool uam2_write_dksh(const char* path, const struct uam2_program* prog);
 
 #ifdef __cplusplus

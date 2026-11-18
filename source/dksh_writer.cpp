@@ -1,6 +1,7 @@
 #include "uam2.h"
 #include "dksh.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <vector>
 
@@ -72,7 +73,7 @@ namespace
 	}
 }
 
-bool uam2_write_dksh(const char* path, const uam2_program* prog)
+void* uam2_build_dksh(const uam2_program* prog, size_t* out_size)
 {
 	bool isCompute = prog->stage == Uam2Stage_Compute;
 	uint32_t sphSize = isCompute ? 0 : sizeof(prog->hdr);
@@ -143,15 +144,35 @@ bool uam2_write_dksh(const char* path, const uam2_program* prog)
 	Pad256(file);
 	file.insert(file.end(), code.begin(), code.end());
 
+	void* out = malloc(file.size());
+	if (!out)
+		return nullptr;
+	memcpy(out, file.data(), file.size());
+	*out_size = file.size();
+	return out;
+}
+
+bool uam2_write_dksh(const char* path, const uam2_program* prog)
+{
+	size_t size;
+	void* data = uam2_build_dksh(prog, &size);
+	if (!data)
+	{
+		fprintf(stderr, "Out of memory\n");
+		return false;
+	}
+
 	FILE* f = fopen(path, "wb");
 	if (!f)
 	{
 		fprintf(stderr, "Could not open output file: %s\n", path);
+		free(data);
 		return false;
 	}
 
-	bool ok = fwrite(file.data(), 1, file.size(), f) == file.size();
+	bool ok = fwrite(data, 1, size, f) == size;
 	fclose(f);
+	free(data);
 	if (!ok)
 		fprintf(stderr, "Could not write output file: %s\n", path);
 	return ok;
