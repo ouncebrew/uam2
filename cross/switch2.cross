@@ -1,0 +1,44 @@
+# Builds libuam2rt
+# Build the Rust sysroot first via cross/rust/build-std-sysroot.sh
+
+[constants]
+dkp = '/opt/devkitpro'
+bin = dkp / 'devkitA64/bin/aarch64-none-elf-'
+arch = ['-mcpu=cortex-a78c+crypto', '-mtp=soft', '-fPIC', '-ftls-model=local-exec']
+defs = ['-D__SWITCH__', '-D__SWITCH2__', '-D_GNU_SOURCE', '-D_DEFAULT_SOURCE',
+	'-isystem', '@DIRNAME@/include',
+	'-isystem', dkp / 'libounce/include', '-I' + dkp / 'portlibs/switch2/include']
+cflags = arch + defs + ['-ffunction-sections', '-fdata-sections']
+
+[binaries]
+c = bin + 'gcc'
+cpp = bin + 'g++'
+ar = bin + 'gcc-ar'
+strip = bin + 'strip'
+objcopy = bin + 'objcopy'
+ld = bin + 'ld'
+pkg-config = 'false'
+rust = ['@DIRNAME@/rust/rustc-switch2.sh']
+bindgen = 'bindgen'
+
+[properties]
+needs_exe_wrapper = true
+bindgen_clang_arguments = ['--target=aarch64-none-elf',
+	'-isystem', dkp / 'devkitA64/aarch64-none-elf/include',
+	'-isystem', dkp / 'libounce/include',
+	'-isystem', '@DIRNAME@/include',
+	'-D__SWITCH__', '-D__SWITCH2__', '-D_GNU_SOURCE']
+
+[built-in options]
+buildtype = 'minsize'
+b_ndebug = 'true'
+c_args = cflags
+cpp_args = cflags
+c_link_args = arch + ['-L' + dkp / 'libounce/lib']
+cpp_link_args = arch + ['-L' + dkp / 'libounce/lib']
+
+[host_machine]
+system = 'horizon'
+cpu_family = 'aarch64'
+cpu = 'cortex-a78c'
+endian = 'little'

@@ -14,12 +14,16 @@ void uam2_init(void)
 {
 	glsl_type_singleton_init_or_ref();
 	s_nak = nak_compiler_create(&uam2_t239_device);
+#ifndef UAM2_RUNTIME
 	uam2_glsl_init(nak_nir_options(s_nak));
+#endif
 }
 
 void uam2_exit(void)
 {
+#ifndef UAM2_RUNTIME
 	uam2_glsl_exit();
+#endif
 	nak_compiler_destroy(s_nak);
 	s_nak = NULL;
 	glsl_type_singleton_decref();
@@ -132,6 +136,7 @@ static bool compile_nir(nir_shader* nir, enum uam2_stage stage, bool dump_asm, s
 	return true;
 }
 
+#ifndef UAM2_RUNTIME
 bool uam2_compile_glsl(const char* source, enum uam2_stage stage, bool dump_asm, struct uam2_program* out)
 {
 	memset(out, 0, sizeof(*out));
@@ -142,6 +147,7 @@ bool uam2_compile_glsl(const char* source, enum uam2_stage stage, bool dump_asm,
 
 	return compile_nir(nir, stage, dump_asm, out);
 }
+#endif
 
 bool uam2_compile_spirv(const uint32_t* words, size_t num_words, enum uam2_stage stage,
 	const char* entrypoint, const struct uam2_spec_const* spec, unsigned num_spec, bool dump_asm,

@@ -1,0 +1,2 @@
+option('runtime', type: 'boolean', value: false,
+	description: 'Build libuam2rt')
