@@ -1,0 +1,69 @@
+diff --git a/src/compiler/nir/nir_algebraic.py b/src/compiler/nir/nir_algebraic.py
+index 5668b60..c1fea37 100644
+--- a/src/compiler/nir/nir_algebraic.py
++++ b/src/compiler/nir/nir_algebraic.py
+@@ -1207,14 +1207,29 @@ static const struct per_op_table ${pass_name}_pass_op_table[nir_num_search_ops]
+         num_filtered = len(automaton.rep[op])
+       %>
+       .num_filtered_states = ${num_filtered},
+-      .table = (const uint16_t []) {
+       <%
+         num_srcs = len(next(iter(automaton.table[op])))
++        rows = [tuple(automaton.table[op][prefix + (last,)] for last in range(num_filtered))
++                for prefix in itertools.product(range(num_filtered), repeat=num_srcs - 1)]
++        unique_rows = automaton.IndexMap()
++        row_indices = [unique_rows.add(row) for row in rows]
++        dedup = (num_srcs > 1 and len(unique_rows) <= 0xffff and
++                 len(unique_rows) * num_filtered + len(rows) < len(rows) * num_filtered)
+       %>
+-      % for indices in itertools.product(range(num_filtered), repeat=num_srcs):
+-         ${automaton.table[op][indices]},
++      .table = (const uint16_t []) {
++      % for row in (unique_rows if dedup else rows):
++      % for e in row:
++         ${e},
++      % endfor
+       % endfor
+       },
++% if dedup:
++      .rows = (const uint16_t []) {
++      % for i in row_indices:
++         ${i},
++      % endfor
++      },
++% endif
+    },
+ % endfor
+ };
+diff --git a/src/compiler/nir/nir_search.c b/src/compiler/nir/nir_search.c
+index b4443cd..a51622c 100644
+--- a/src/compiler/nir/nir_search.c
++++ b/src/compiler/nir/nir_search.c
+@@ -771,9 +771,13 @@ nir_algebraic_automaton(nir_instr *instr, struct util_dynarray *states,
+        * itertools.product(), which was used to emit the transition
+        * table.
+        */
++      const unsigned num_inputs = nir_op_infos[op].num_inputs;
+       unsigned index = 0;
+-      for (unsigned i = 0; i < nir_op_infos[op].num_inputs; i++) {
+-         index *= tbl->num_filtered_states;
++      for (unsigned i = 0; i < num_inputs; i++) {
++         if (tbl->rows && i == num_inputs - 1)
++            index = tbl->rows[index] * tbl->num_filtered_states;
++         else
++            index *= tbl->num_filtered_states;
+          if (tbl->filter)
+             index += tbl->filter[*util_dynarray_element(states, uint16_t,
+                                                         alu->src[i].src.ssa->index)];
+diff --git a/src/compiler/nir/nir_search.h b/src/compiler/nir/nir_search.h
+index 4c7683e..6de3c67 100644
+--- a/src/compiler/nir/nir_search.h
++++ b/src/compiler/nir/nir_search.h
+@@ -162,6 +162,7 @@ struct per_op_table {
+    const uint16_t *filter;
+    unsigned num_filtered_states;
+    const uint16_t *table;
++   const uint16_t *rows;
+ };
+ 
+ struct transform {
