@@ -1,4 +1,5 @@
 #include "uam2.h"
+#include "abi.h"
 #include "nir.h"
 #include "nir_spirv.h"
 #include "nak.h"
@@ -66,6 +67,7 @@ static bool compile_nir(nir_shader* nir, enum uam2_stage stage, bool dump_asm, s
 	NIR_PASS(_, nir, nir_opt_large_constants, NULL, 32);
 	NIR_PASS(_, nir, nir_lower_load_const_to_scalar);
 
+	uam2_lower_descriptors(nir);
 	NIR_PASS(_, nir, nir_lower_ssbo, NULL);
 	NIR_PASS(_, nir, nir_lower_explicit_io, nir_var_mem_global, nir_address_format_64bit_global);
 
@@ -171,10 +173,12 @@ bool uam2_compile_spirv(const uint32_t* words, size_t num_words, enum uam2_stage
 
 	const struct spirv_to_nir_options spirv_opts =
 	{
-		.ssbo_addr_format = nir_address_format_64bit_global_32bit_offset,
+		.ssbo_addr_format = nir_address_format_32bit_index_offset,
 		.phys_ssbo_addr_format = nir_address_format_64bit_global,
-		.ubo_addr_format = nir_address_format_64bit_bounded_global,
+		.ubo_addr_format = nir_address_format_32bit_index_offset,
 		.shared_addr_format = nir_address_format_32bit_offset,
+		.min_ubo_alignment = DK_UNIFORM_BUF_ALIGNMENT,
+		.min_ssbo_alignment = UAM2_STORAGE_BUF_ALIGNMENT,
 	};
 
 	nir_shader* nir = spirv_to_nir(words, num_words, spec_info, to_mesa_stage(stage), entrypoint,
@@ -192,6 +196,15 @@ bool uam2_compile_spirv(const uint32_t* words, size_t num_words, enum uam2_stage
 	NIR_PASS(_, nir, nir_opt_copy_prop);
 	NIR_PASS(_, nir, nir_opt_deref);
 	nir_remove_non_entrypoints(nir);
+
+	const nir_opt_access_options access_opts = { .is_vulkan = true };
+	NIR_PASS(_, nir, nir_opt_access, &access_opts);
+
+	if (!uam2_check_abi(nir))
+	{
+		ralloc_free(nir);
+		return false;
+	}
 
 	return compile_nir(nir, stage, dump_asm, out);
 }

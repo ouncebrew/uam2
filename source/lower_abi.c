@@ -90,10 +90,15 @@ static nir_def* load_handle(nir_builder* b, nir_deref_instr* deref, bool image)
 	return ldc(b, 1, 32, UAM2_HANDLE_CBUF, nir_iadd_imm(b, nir_imul_imm(b, binding, 8), base));
 }
 
-static bool lower_tex(nir_builder* b, nir_tex_instr* tex)
+static bool lower_tex(nir_builder* b, nir_tex_instr* tex, struct abi_state* state)
 {
 	nir_deref_instr* texture = nir_steal_tex_deref(tex, nir_tex_src_texture_deref);
 	nir_deref_instr* sampler = nir_steal_tex_deref(tex, nir_tex_src_sampler_deref);
+	if (texture && sampler && nir_deref_instr_get_variable(texture) != nir_deref_instr_get_variable(sampler))
+	{
+		abi_error(state, "separate texture and sampler objects are not supported");
+		return false;
+	}
 	if (!texture)
 		texture = sampler;
 	if (!texture)
@@ -175,10 +180,6 @@ static bool lower_intrinsic(nir_builder* b, nir_intrinsic_instr* intr, struct ab
 			return true;
 		}
 
-		case nir_intrinsic_vulkan_resource_index:
-			abi_error(state, "SPIR-V uniform and storage blocks are not supported yet");
-			return false;
-
 		default:
 			return false;
 	}
@@ -190,12 +191,51 @@ static bool lower_instr(nir_builder* b, nir_instr* instr, void* data)
 	switch (instr->type)
 	{
 		case nir_instr_type_tex:
-			return lower_tex(b, nir_instr_as_tex(instr));
+			return lower_tex(b, nir_instr_as_tex(instr), state);
 		case nir_instr_type_intrinsic:
 			return lower_intrinsic(b, nir_instr_as_intrinsic(instr), state);
 		default:
 			return false;
 	}
+}
+
+static bool lower_descriptor(nir_builder* b, nir_intrinsic_instr* intr, void* data)
+{
+	b->cursor = nir_before_instr(&intr->instr);
+
+	nir_def* val;
+	switch (intr->intrinsic)
+	{
+		case nir_intrinsic_vulkan_resource_index:
+			val = nir_vec2(b, nir_iadd_imm(b, intr->src[0].ssa, nir_intrinsic_binding(intr)), nir_imm_int(b, 0));
+			break;
+		case nir_intrinsic_vulkan_resource_reindex:
+			val = nir_vec2(b, nir_iadd(b, nir_channel(b, intr->src[0].ssa, 0), intr->src[1].ssa),
+				nir_channel(b, intr->src[0].ssa, 1));
+			break;
+		case nir_intrinsic_load_vulkan_descriptor:
+			val = intr->src[0].ssa;
+			break;
+		default:
+			return false;
+	}
+
+	nir_def_replace(&intr->def, val);
+	return true;
+}
+
+bool uam2_lower_descriptors(nir_shader* nir)
+{
+	bool progress = false;
+	NIR_PASS(progress, nir, nir_shader_intrinsics_pass, lower_descriptor, nir_metadata_control_flow, NULL);
+	if (!progress)
+		return false;
+
+	NIR_PASS(_, nir, nir_lower_explicit_io, nir_var_mem_ubo | nir_var_mem_ssbo, nir_address_format_32bit_index_offset);
+	NIR_PASS(_, nir, nir_opt_copy_prop);
+	NIR_PASS(_, nir, nir_opt_constant_folding);
+	NIR_PASS(_, nir, nir_opt_dce);
+	return true;
 }
 
 static const char* var_name(const nir_variable* var)
