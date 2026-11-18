@@ -21,6 +21,12 @@ enum uam2_stage
 	Uam2Stage_Compute,
 };
 
+struct uam2_spec_const
+{
+	uint32_t id;
+	uint32_t value;
+};
+
 struct uam2_program
 {
 	enum uam2_stage stage;
@@ -65,7 +71,8 @@ bool uam2_lower_abi(struct nir_shader* nir);
 
 bool uam2_compile_glsl(const char* source, enum uam2_stage stage, bool dump_asm, struct uam2_program* out);
 bool uam2_compile_spirv(const uint32_t* words, size_t num_words, enum uam2_stage stage,
-	const char* entrypoint, bool dump_asm, struct uam2_program* out);
+	const char* entrypoint, const struct uam2_spec_const* spec, unsigned num_spec, bool dump_asm,
+	struct uam2_program* out);
 
 void uam2_program_free(struct uam2_program* prog);
 

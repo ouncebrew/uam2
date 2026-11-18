@@ -144,9 +144,24 @@ bool uam2_compile_glsl(const char* source, enum uam2_stage stage, bool dump_asm,
 }
 
 bool uam2_compile_spirv(const uint32_t* words, size_t num_words, enum uam2_stage stage,
-	const char* entrypoint, bool dump_asm, struct uam2_program* out)
+	const char* entrypoint, const struct uam2_spec_const* spec, unsigned num_spec, bool dump_asm,
+	struct uam2_program* out)
 {
 	memset(out, 0, sizeof(*out));
+
+	struct nir_spirv_specialization* spec_info = NULL;
+	if (num_spec)
+	{
+		spec_info = vtn_alloc_specialization(num_spec);
+		if (!spec_info)
+			return false;
+		for (unsigned i = 0; i < num_spec; i ++)
+			if (!vtn_add_specialization_entry(spec_info, i, spec[i].id, sizeof(spec[i].value), &spec[i].value, false))
+			{
+				vtn_free_specialization(spec_info);
+				return false;
+			}
+	}
 
 	const struct spirv_to_nir_options spirv_opts =
 	{
@@ -156,8 +171,9 @@ bool uam2_compile_spirv(const uint32_t* words, size_t num_words, enum uam2_stage
 		.shared_addr_format = nir_address_format_32bit_offset,
 	};
 
-	nir_shader* nir = spirv_to_nir(words, num_words, NULL, to_mesa_stage(stage), entrypoint,
+	nir_shader* nir = spirv_to_nir(words, num_words, spec_info, to_mesa_stage(stage), entrypoint,
 		&spirv_opts, nak_nir_options(s_nak));
+	vtn_free_specialization(spec_info);
 	if (!nir)
 	{
 		fprintf(stderr, "error: SPIR-V to NIR translation failed\n");

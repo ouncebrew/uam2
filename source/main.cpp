@@ -125,7 +125,7 @@ int main(int argc, char* argv[])
 
 	uam2_program prog;
 	bool rc = isSpirv
-		? uam2_compile_spirv(words.data(), fsize / 4, stage, "main", asmFile != nullptr, &prog)
+		? uam2_compile_spirv(words.data(), fsize / 4, stage, "main", nullptr, 0, asmFile != nullptr, &prog)
 		: uam2_compile_glsl((const char*)words.data(), stage, asmFile != nullptr, &prog);
 	if (rc)
 	{
