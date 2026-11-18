@@ -67,6 +67,7 @@ void uam2_glsl_init(const struct nir_shader_compiler_options* options);
 void uam2_glsl_exit(void);
 struct nir_shader* uam2_glsl_to_nir(const char* source, enum uam2_stage stage);
 
+bool uam2_check_abi(struct nir_shader* nir);
 bool uam2_lower_abi(struct nir_shader* nir);
 
 bool uam2_compile_glsl(const char* source, enum uam2_stage stage, bool dump_asm, struct uam2_program* out);

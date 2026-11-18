@@ -198,6 +198,92 @@ static bool lower_instr(nir_builder* b, nir_instr* instr, void* data)
 	}
 }
 
+static const char* var_name(const nir_variable* var)
+{
+	const struct glsl_type* iface = var->interface_type ? glsl_without_array(var->interface_type) : NULL;
+	if (iface && glsl_get_type_name(iface))
+		return glsl_get_type_name(iface);
+	return var->name ? var->name : "(unnamed)";
+}
+
+static bool is_opaque_uniform(const nir_variable* var)
+{
+	const struct glsl_type* type = glsl_without_array(var->type);
+	return glsl_type_is_sampler(type) || glsl_type_is_image(type) || glsl_type_is_texture(type);
+}
+
+static unsigned binding_limit(const nir_variable* var)
+{
+	switch (var->data.mode)
+	{
+		case nir_var_mem_ubo:  return DK_NUM_UNIFORM_BUFS;
+		case nir_var_mem_ssbo: return DK_NUM_STORAGE_BUFS;
+		case nir_var_image:    return DK_NUM_IMAGE_BINDINGS;
+		default:               return DK_NUM_TEXTURE_BINDINGS;
+	}
+}
+
+bool uam2_check_abi(nir_shader* nir)
+{
+	bool ok = true;
+	nir_foreach_variable_with_modes(var, nir, nir_var_uniform | nir_var_image | nir_var_mem_ubo | nir_var_mem_ssbo)
+	{
+		if (var->num_state_slots)
+			continue;
+
+		if (var->data.mode == nir_var_uniform && !is_opaque_uniform(var))
+		{
+			fprintf(stderr, "error: uniform '%s' outside of a uniform block is not supported\n", var_name(var));
+			ok = false;
+			continue;
+		}
+		if (!var->data.explicit_binding)
+		{
+			fprintf(stderr, "error: '%s' must have an explicit binding\n", var_name(var));
+			ok = false;
+			continue;
+		}
+		if (var->data.descriptor_set != 0)
+		{
+			fprintf(stderr, "error: '%s' must be in descriptor set 0\n", var_name(var));
+			ok = false;
+			continue;
+		}
+
+		bool binding_array = glsl_type_is_array(var->type) &&
+			(!var->interface_type || var->interface_type == var->type ||
+			 var->interface_type == glsl_without_array(var->type));
+		unsigned count = binding_array ? MAX2(glsl_get_aoa_size(var->type), 1) : 1;
+		if (var->data.binding + count > binding_limit(var))
+		{
+			fprintf(stderr, "error: binding %u of '%s' is out of range (maximum %u)\n",
+				var->data.binding + count - 1, var_name(var), binding_limit(var) - 1);
+			ok = false;
+		}
+	}
+
+	nir_foreach_variable_with_modes(var, nir, nir_var_mem_push_const)
+	{
+		fprintf(stderr, "error: push constants are not supported\n");
+		ok = false;
+		break;
+	}
+
+	if (nir->info.stage == MESA_SHADER_FRAGMENT && nir->info.fs.pixel_center_integer)
+	{
+		fprintf(stderr, "error: pixel_center_integer is not supported\n");
+		ok = false;
+	}
+
+	if (nir->info.stage == MESA_SHADER_COMPUTE && nir->info.workgroup_size_variable)
+	{
+		fprintf(stderr, "error: the work group size must be a compile-time constant\n");
+		ok = false;
+	}
+
+	return ok;
+}
+
 bool uam2_lower_abi(nir_shader* nir)
 {
 	struct abi_state state = { .ok = true };

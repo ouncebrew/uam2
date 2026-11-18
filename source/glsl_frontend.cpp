@@ -130,52 +130,11 @@ static void print_log(const char* what, const char* log)
 		fprintf(stderr, "%s:\n%s", what, log);
 }
 
-static bool is_opaque_uniform(const nir_variable* var)
-{
-	const struct glsl_type* type = glsl_without_array(var->type);
-	return glsl_type_is_sampler(type) || glsl_type_is_image(type) || glsl_type_is_texture(type);
-}
-
 static bool check_variables(nir_shader* nir)
 {
-	bool ok = true;
-	nir_foreach_variable_with_modes(var, nir, nir_var_uniform | nir_var_image | nir_var_mem_ubo | nir_var_mem_ssbo)
-	{
-		if (var->num_state_slots)
-			continue;
-
-		bool needs_binding = var->data.mode != nir_var_uniform || is_opaque_uniform(var);
-		if (!needs_binding)
-		{
-			fprintf(stderr, "error: uniform '%s' outside of a uniform block is not supported\n", var->name);
-			ok = false;
-		}
-		else if (!var->data.explicit_binding)
-		{
-			const char* name = var->interface_type ? glsl_get_type_name(var->interface_type) : var->name;
-			fprintf(stderr, "error: '%s' must have an explicit binding\n", name);
-			ok = false;
-		}
-	}
-
-	if (nir->info.stage == MESA_SHADER_FRAGMENT)
-	{
-		if (nir->info.fs.pixel_center_integer)
-		{
-			fprintf(stderr, "error: pixel_center_integer is not supported\n");
-			ok = false;
-		}
-		if (nir->info.fs.origin_upper_left)
-			fprintf(stderr, "warning: origin_upper_left has no effect\n");
-	}
-
-	if (nir->info.stage == MESA_SHADER_COMPUTE && nir->info.workgroup_size_variable)
-	{
-		fprintf(stderr, "error: the work group size must be a compile-time constant\n");
-		ok = false;
-	}
-
-	return ok;
+	if (nir->info.stage == MESA_SHADER_FRAGMENT && nir->info.fs.origin_upper_left)
+		fprintf(stderr, "warning: origin_upper_left has no effect\n");
+	return uam2_check_abi(nir);
 }
 
 struct block_map
