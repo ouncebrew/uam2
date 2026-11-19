@@ -2,16 +2,16 @@
 #include "abi.h"
 #include "nir.h"
 #include "nir_builder.h"
-#include <stdio.h>
 
 struct abi_state
 {
+	struct uam2_log* log;
 	bool ok;
 };
 
 static void abi_error(struct abi_state* state, const char* msg)
 {
-	fprintf(stderr, "error: %s\n", msg);
+	uam2_logf(state->log, "error: %s\n", msg);
 	state->ok = false;
 }
 
@@ -263,7 +263,7 @@ static unsigned binding_limit(const nir_variable* var)
 	}
 }
 
-bool uam2_check_abi(nir_shader* nir)
+bool uam2_check_abi(nir_shader* nir, struct uam2_log* log)
 {
 	bool ok = true;
 	nir_foreach_variable_with_modes(var, nir, nir_var_uniform | nir_var_image | nir_var_mem_ubo | nir_var_mem_ssbo)
@@ -273,19 +273,19 @@ bool uam2_check_abi(nir_shader* nir)
 
 		if (var->data.mode == nir_var_uniform && !is_opaque_uniform(var))
 		{
-			fprintf(stderr, "error: uniform '%s' outside of a uniform block is not supported\n", var_name(var));
+			uam2_logf(log, "error: uniform '%s' outside of a uniform block is not supported\n", var_name(var));
 			ok = false;
 			continue;
 		}
 		if (!var->data.explicit_binding)
 		{
-			fprintf(stderr, "error: '%s' must have an explicit binding\n", var_name(var));
+			uam2_logf(log, "error: '%s' must have an explicit binding\n", var_name(var));
 			ok = false;
 			continue;
 		}
 		if (var->data.descriptor_set != 0)
 		{
-			fprintf(stderr, "error: '%s' must be in descriptor set 0\n", var_name(var));
+			uam2_logf(log, "error: '%s' must be in descriptor set 0\n", var_name(var));
 			ok = false;
 			continue;
 		}
@@ -296,7 +296,7 @@ bool uam2_check_abi(nir_shader* nir)
 		unsigned count = binding_array ? MAX2(glsl_get_aoa_size(var->type), 1) : 1;
 		if (var->data.binding + count > binding_limit(var))
 		{
-			fprintf(stderr, "error: binding %u of '%s' is out of range (maximum %u)\n",
+			uam2_logf(log, "error: binding %u of '%s' is out of range (maximum %u)\n",
 				var->data.binding + count - 1, var_name(var), binding_limit(var) - 1);
 			ok = false;
 		}
@@ -304,29 +304,29 @@ bool uam2_check_abi(nir_shader* nir)
 
 	nir_foreach_variable_with_modes(var, nir, nir_var_mem_push_const)
 	{
-		fprintf(stderr, "error: push constants are not supported\n");
+		uam2_logf(log, "error: push constants are not supported\n");
 		ok = false;
 		break;
 	}
 
 	if (nir->info.stage == MESA_SHADER_FRAGMENT && nir->info.fs.pixel_center_integer)
 	{
-		fprintf(stderr, "error: pixel_center_integer is not supported\n");
+		uam2_logf(log, "error: pixel_center_integer is not supported\n");
 		ok = false;
 	}
 
 	if (nir->info.stage == MESA_SHADER_COMPUTE && nir->info.workgroup_size_variable)
 	{
-		fprintf(stderr, "error: the work group size must be a compile-time constant\n");
+		uam2_logf(log, "error: the work group size must be a compile-time constant\n");
 		ok = false;
 	}
 
 	return ok;
 }
 
-bool uam2_lower_abi(nir_shader* nir)
+bool uam2_lower_abi(nir_shader* nir, struct uam2_log* log)
 {
-	struct abi_state state = { .ok = true };
+	struct abi_state state = { .log = log, .ok = true };
 	NIR_PASS(_, nir, nir_shader_instructions_pass, lower_instr, nir_metadata_control_flow, &state);
 	return state.ok;
 }

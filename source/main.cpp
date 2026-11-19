@@ -124,9 +124,14 @@ int main(int argc, char* argv[])
 	uam2_init();
 
 	uam2_program prog;
+	uam2_log log = {};
 	bool rc = isSpirv
-		? uam2_compile_spirv(words.data(), fsize / 4, stage, "main", nullptr, 0, asmFile != nullptr, &prog)
-		: uam2_compile_glsl((const char*)words.data(), stage, asmFile != nullptr, &prog);
+		? uam2_compile_spirv(words.data(), fsize / 4, stage, "main", nullptr, 0, asmFile != nullptr, &prog, &log)
+		: uam2_compile_glsl((const char*)words.data(), stage, asmFile != nullptr, &prog, &log);
+	if (log.len)
+		fputs(log.buf, stderr);
+	free(log.buf);
+
 	if (rc)
 	{
 		if (outFile)

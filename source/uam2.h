@@ -58,6 +58,15 @@ struct uam2_program
 	char* asm_str;
 };
 
+struct uam2_log
+{
+	char* buf;
+	size_t len;
+	size_t cap;
+};
+
+void uam2_logf(struct uam2_log* log, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
+
 extern const struct nv_device_info uam2_t239_device;
 
 void uam2_init(void);
@@ -65,16 +74,17 @@ void uam2_exit(void);
 
 void uam2_glsl_init(const struct nir_shader_compiler_options* options);
 void uam2_glsl_exit(void);
-struct nir_shader* uam2_glsl_to_nir(const char* source, enum uam2_stage stage);
+struct nir_shader* uam2_glsl_to_nir(const char* source, enum uam2_stage stage, struct uam2_log* log);
 
-bool uam2_check_abi(struct nir_shader* nir);
+bool uam2_check_abi(struct nir_shader* nir, struct uam2_log* log);
 bool uam2_lower_descriptors(struct nir_shader* nir);
-bool uam2_lower_abi(struct nir_shader* nir);
+bool uam2_lower_abi(struct nir_shader* nir, struct uam2_log* log);
 
-bool uam2_compile_glsl(const char* source, enum uam2_stage stage, bool dump_asm, struct uam2_program* out);
+bool uam2_compile_glsl(const char* source, enum uam2_stage stage, bool dump_asm, struct uam2_program* out,
+	struct uam2_log* log);
 bool uam2_compile_spirv(const uint32_t* words, size_t num_words, enum uam2_stage stage,
 	const char* entrypoint, const struct uam2_spec_const* spec, unsigned num_spec, bool dump_asm,
-	struct uam2_program* out);
+	struct uam2_program* out, struct uam2_log* log);
 
 void uam2_program_free(struct uam2_program* prog);
 

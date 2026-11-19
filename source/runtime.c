@@ -27,15 +27,21 @@ void* uam2rt_compile_spirv(const uint32_t* words, size_t num_words, Uam2rtStage 
 	const char* entrypoint, const Uam2rtSpecConst* spec, uint32_t num_spec,
 	size_t* out_size, char** out_log)
 {
-	if (out_log)
-		*out_log = NULL;
-
+	struct uam2_log log = { 0 };
 	struct uam2_program prog;
-	if (!uam2_compile_spirv(words, num_words, (enum uam2_stage)stage, entrypoint ? entrypoint : "main",
-		(const struct uam2_spec_const*)spec, num_spec, false, &prog))
-		return NULL;
+	void* dksh = NULL;
+	if (uam2_compile_spirv(words, num_words, (enum uam2_stage)stage, entrypoint ? entrypoint : "main",
+		(const struct uam2_spec_const*)spec, num_spec, false, &prog, &log))
+	{
+		dksh = uam2_build_dksh(&prog, out_size);
+		if (!dksh)
+			uam2_logf(&log, "error: out of memory\n");
+		uam2_program_free(&prog);
+	}
 
-	void* dksh = uam2_build_dksh(&prog, out_size);
-	uam2_program_free(&prog);
+	if (out_log)
+		*out_log = log.buf;
+	else
+		free(log.buf);
 	return dksh;
 }

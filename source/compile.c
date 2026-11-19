@@ -51,7 +51,8 @@ static void shared_var_info(const struct glsl_type* type, unsigned* size, unsign
 	*align = comp_size;
 }
 
-static bool compile_nir(nir_shader* nir, enum uam2_stage stage, bool dump_asm, struct uam2_program* out)
+static bool compile_nir(nir_shader* nir, enum uam2_stage stage, bool dump_asm, struct uam2_program* out,
+	struct uam2_log* log)
 {
 	nak_preprocess_nir(nir, s_nak);
 
@@ -71,7 +72,7 @@ static bool compile_nir(nir_shader* nir, enum uam2_stage stage, bool dump_asm, s
 	NIR_PASS(_, nir, nir_lower_ssbo, NULL);
 	NIR_PASS(_, nir, nir_lower_explicit_io, nir_var_mem_global, nir_address_format_64bit_global);
 
-	if (!uam2_lower_abi(nir))
+	if (!uam2_lower_abi(nir, log))
 	{
 		ralloc_free(nir);
 		return false;
@@ -97,7 +98,7 @@ static bool compile_nir(nir_shader* nir, enum uam2_stage stage, bool dump_asm, s
 	ralloc_free(nir);
 	if (!bin)
 	{
-		fprintf(stderr, "error: NAK compilation failed\n");
+		uam2_logf(log, "error: NAK compilation failed\n");
 		uam2_program_free(out);
 		return false;
 	}
@@ -139,21 +140,31 @@ static bool compile_nir(nir_shader* nir, enum uam2_stage stage, bool dump_asm, s
 }
 
 #ifndef UAM2_RUNTIME
-bool uam2_compile_glsl(const char* source, enum uam2_stage stage, bool dump_asm, struct uam2_program* out)
+bool uam2_compile_glsl(const char* source, enum uam2_stage stage, bool dump_asm, struct uam2_program* out,
+	struct uam2_log* log)
 {
 	memset(out, 0, sizeof(*out));
 
-	nir_shader* nir = uam2_glsl_to_nir(source, stage);
+	nir_shader* nir = uam2_glsl_to_nir(source, stage, log);
 	if (!nir)
 		return false;
 
-	return compile_nir(nir, stage, dump_asm, out);
+	return compile_nir(nir, stage, dump_asm, out, log);
+}
+#endif
+
+#ifdef UAM2_RUNTIME
+static void spirv_log(void* data, enum nir_spirv_debug_level level, size_t spirv_offset, const char* message)
+{
+	(void)spirv_offset;
+	if (level >= NIR_SPIRV_DEBUG_LEVEL_WARNING)
+		uam2_logf((struct uam2_log*)data, "%s\n", message);
 }
 #endif
 
 bool uam2_compile_spirv(const uint32_t* words, size_t num_words, enum uam2_stage stage,
 	const char* entrypoint, const struct uam2_spec_const* spec, unsigned num_spec, bool dump_asm,
-	struct uam2_program* out)
+	struct uam2_program* out, struct uam2_log* log)
 {
 	memset(out, 0, sizeof(*out));
 
@@ -179,6 +190,10 @@ bool uam2_compile_spirv(const uint32_t* words, size_t num_words, enum uam2_stage
 		.shared_addr_format = nir_address_format_32bit_offset,
 		.min_ubo_alignment = DK_UNIFORM_BUF_ALIGNMENT,
 		.min_ssbo_alignment = UAM2_STORAGE_BUF_ALIGNMENT,
+		.skip_os_break_in_debug_build = true,
+#ifdef UAM2_RUNTIME
+		.debug = { .func = spirv_log, .private_data = log },
+#endif
 	};
 
 	nir_shader* nir = spirv_to_nir(words, num_words, spec_info, to_mesa_stage(stage), entrypoint,
@@ -186,7 +201,7 @@ bool uam2_compile_spirv(const uint32_t* words, size_t num_words, enum uam2_stage
 	vtn_free_specialization(spec_info);
 	if (!nir)
 	{
-		fprintf(stderr, "error: SPIR-V to NIR translation failed\n");
+		uam2_logf(log, "error: SPIR-V to NIR translation failed\n");
 		return false;
 	}
 
@@ -200,13 +215,13 @@ bool uam2_compile_spirv(const uint32_t* words, size_t num_words, enum uam2_stage
 	const nir_opt_access_options access_opts = { .is_vulkan = true };
 	NIR_PASS(_, nir, nir_opt_access, &access_opts);
 
-	if (!uam2_check_abi(nir))
+	if (!uam2_check_abi(nir, log))
 	{
 		ralloc_free(nir);
 		return false;
 	}
 
-	return compile_nir(nir, stage, dump_asm, out);
+	return compile_nir(nir, stage, dump_asm, out, log);
 }
 
 void uam2_program_free(struct uam2_program* prog)

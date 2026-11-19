@@ -124,17 +124,17 @@ void uam2_glsl_exit(void)
 	_mesa_glsl_builtin_functions_decref();
 }
 
-static void print_log(const char* what, const char* log)
+static void print_log(uam2_log* log, const char* what, const char* info)
 {
-	if (log && log[0])
-		fprintf(stderr, "%s:\n%s", what, log);
+	if (info && info[0])
+		uam2_logf(log, "%s:\n%s", what, info);
 }
 
-static bool check_variables(nir_shader* nir)
+static bool check_variables(nir_shader* nir, uam2_log* log)
 {
 	if (nir->info.stage == MESA_SHADER_FRAGMENT && nir->info.fs.origin_upper_left)
-		fprintf(stderr, "warning: origin_upper_left has no effect\n");
-	return uam2_check_abi(nir);
+		uam2_logf(log, "warning: origin_upper_left has no effect\n");
+	return uam2_check_abi(nir, log);
 }
 
 struct block_map
@@ -142,6 +142,7 @@ struct block_map
 	unsigned num_ubos, num_ssbos;
 	int ubo_binding[DK_NUM_UNIFORM_BUFS];
 	int ssbo_binding[DK_NUM_STORAGE_BUFS];
+	uam2_log* log;
 	bool ok;
 };
 
@@ -158,7 +159,7 @@ static nir_def* remap_block_index(nir_builder* b, nir_def* index, const int* bin
 	{
 		if (bindings[i] - (int)i != delta)
 		{
-			fprintf(stderr, "error: dynamically indexed blocks must be the only blocks of their kind in the shader\n");
+			uam2_logf(map->log, "error: dynamically indexed blocks must be the only blocks of their kind in the shader\n");
 			map->ok = false;
 			break;
 		}
@@ -198,11 +199,12 @@ static bool remap_block_instr(nir_builder* b, nir_intrinsic_instr* intr, void* d
 	return true;
 }
 
-static bool lower_blocks_to_bindings(nir_shader* nir, struct gl_shader_program* prg)
+static bool lower_blocks_to_bindings(nir_shader* nir, struct gl_shader_program* prg, uam2_log* log)
 {
 	struct gl_program* prog = prg->_LinkedShaders[nir->info.stage]->Program;
 
 	struct block_map map = {};
+	map.log = log;
 	map.ok = true;
 	map.num_ubos = prog->info.num_ubos;
 	map.num_ssbos = prog->info.num_ssbos;
@@ -219,7 +221,7 @@ static bool lower_blocks_to_bindings(nir_shader* nir, struct gl_shader_program* 
 	return map.ok;
 }
 
-struct nir_shader* uam2_glsl_to_nir(const char* source, enum uam2_stage stage)
+struct nir_shader* uam2_glsl_to_nir(const char* source, enum uam2_stage stage, uam2_log* log)
 {
 	struct gl_context* ctx = &s_ctx;
 	struct gl_shader_program* prg = standalone_create_shader_program();
@@ -231,10 +233,10 @@ struct nir_shader* uam2_glsl_to_nir(const char* source, enum uam2_stage stage)
 	_mesa_glsl_compile_shader(ctx, shader, NULL, false, false, true);
 	if (shader->CompileStatus != COMPILE_SUCCESS)
 	{
-		print_log("Shader failed to compile", shader->InfoLog);
+		print_log(log, "Shader failed to compile", shader->InfoLog);
 		goto done;
 	}
-	print_log("Compiler log", shader->InfoLog);
+	print_log(log, "Compiler log", shader->InfoLog);
 
 	_mesa_clear_shader_program_data(ctx, prg);
 	prg->data->LinkStatus = LINKING_SUCCESS;
@@ -242,16 +244,16 @@ struct nir_shader* uam2_glsl_to_nir(const char* source, enum uam2_stage stage)
 	gl_nir_link_glsl(ctx, prg);
 	if (prg->data->LinkStatus != LINKING_SUCCESS)
 	{
-		print_log("Shader failed to link", prg->data->InfoLog);
+		print_log(log, "Shader failed to link", prg->data->InfoLog);
 		goto done;
 	}
-	print_log("Linker log", prg->data->InfoLog);
+	print_log(log, "Linker log", prg->data->InfoLog);
 
 	{
 		struct gl_linked_shader* linked = prg->_LinkedShaders[shader->Stage];
 		if (linked->Program->sh.NumSubroutineFunctions || linked->Program->sh.NumSubroutineUniforms)
 		{
-			fprintf(stderr, "error: shader subroutines are not supported\n");
+			uam2_logf(log, "error: shader subroutines are not supported\n");
 			goto done;
 		}
 
@@ -259,7 +261,7 @@ struct nir_shader* uam2_glsl_to_nir(const char* source, enum uam2_stage stage)
 		linked->Program->nir = NULL;
 		ralloc_steal(NULL, nir);
 
-		if (!check_variables(nir) || !lower_blocks_to_bindings(nir, prg))
+		if (!check_variables(nir, log) || !lower_blocks_to_bindings(nir, prg, log))
 		{
 			ralloc_free(nir);
 			nir = NULL;
