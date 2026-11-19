@@ -48,7 +48,8 @@ ninja -C build
 ### libuam2rt
 
 `libuam2rt` is a static library for homebrew to link against that compiles SPIR-V to DKSH at
-runtime (see `include/uam2rt.h`).
+runtime (see `include/uam2rt.h`). This adds ~4.5MB to the output nro, so it's best if you can
+pre-compile shaders beforehand with uam2. libuam2rt exists for the scenarios when that isn't possible.
 
 To build:
 ```

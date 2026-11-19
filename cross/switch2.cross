@@ -8,7 +8,8 @@ arch = ['-mcpu=cortex-a78c+crypto', '-mtp=soft', '-fPIC', '-ftls-model=local-exe
 defs = ['-D__SWITCH__', '-D__SWITCH2__', '-D_GNU_SOURCE', '-D_DEFAULT_SOURCE',
 	'-isystem', '@DIRNAME@/include',
 	'-isystem', dkp / 'libounce/include', '-I' + dkp / 'portlibs/switch2/include']
-cflags = arch + defs + ['-ffunction-sections', '-fdata-sections']
+cflags = arch + defs + ['-ffunction-sections', '-fdata-sections',
+	'-fno-asynchronous-unwind-tables', '-fno-unwind-tables']
 
 [binaries]
 c = bin + 'gcc'

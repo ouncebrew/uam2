@@ -2,4 +2,4 @@
 url = https://gitlab.freedesktop.org/mesa/mesa.git
 revision = mesa-26.3.0
 depth = 1
-diff_files = mesa/0001-Add-nak-standalone-option.patch, mesa/0002-glsl-Define-DEKO3D.patch, mesa/0003-Build-for-Horizon.patch, mesa/0004-nir-algebraic-Share-identical-transition-table-rows.patch
+diff_files = mesa/0001-Add-nak-standalone-option.patch, mesa/0002-glsl-Define-DEKO3D.patch, mesa/0003-Build-for-Horizon.patch, mesa/0004-nir-algebraic-Share-identical-transition-table-rows.patch, mesa/0005-nir-algebraic-Store-filter-tables-sparsely.patch

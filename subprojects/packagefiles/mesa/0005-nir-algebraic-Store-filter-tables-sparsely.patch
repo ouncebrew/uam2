@@ -1,0 +1,100 @@
+diff --git a/src/compiler/nir/nir_algebraic.py b/src/compiler/nir/nir_algebraic.py
+--- a/src/compiler/nir/nir_algebraic.py
++++ b/src/compiler/nir/nir_algebraic.py
+@@ -1191,17 +1191,36 @@
+ % endfor
+ };
+ 
++<%
++  sparse_filters = automaton.IndexMap()
++  filter_index = {}
++  for op in automaton.opcodes:
++    entries = tuple((s, e) for s, e in enumerate(automaton.filter[op]) if e != 0)
++    assert all(e <= 0xff for s, e in entries)
++    if entries:
++      filter_index[op] = sparse_filters.add(entries)
++%>
++% for i, entries in enumerate(sparse_filters):
++static const uint16_t ${pass_name}_filter_states_${i}[] = {
++% for s, e in entries:
++   ${s},
++% endfor
++};
++
++static const uint8_t ${pass_name}_filter_values_${i}[] = {
++% for s, e in entries:
++   ${e},
++% endfor
++};
++
++% endfor
+ static const struct per_op_table ${pass_name}_pass_op_table[nir_num_search_ops] = {
+ % for op in automaton.opcodes:
+    [${get_c_opcode(op)}] = {
+-% if all(e == 0 for e in automaton.filter[op]):
+-      .filter = NULL,
+-% else:
+-      .filter = (const uint16_t []) {
+-      % for e in automaton.filter[op]:
+-         ${e},
+-      % endfor
+-      },
++% if op in filter_index:
++      .filter_states = ${pass_name}_filter_states_${filter_index[op]},
++      .filter_values = ${pass_name}_filter_values_${filter_index[op]},
++      .num_filter_entries = ${len(sparse_filters[filter_index[op]])},
+ % endif
+       <%
+         num_filtered = len(automaton.rep[op])
+diff --git a/src/compiler/nir/nir_search.c b/src/compiler/nir/nir_search.c
+--- a/src/compiler/nir/nir_search.c
++++ b/src/compiler/nir/nir_search.c
+@@ -753,6 +753,22 @@
+    return true;
+ }
+ 
++static unsigned
++filter_state(const struct per_op_table *tbl, uint16_t state)
++{
++   unsigned lo = 0, hi = tbl->num_filter_entries;
++   while (lo < hi) {
++      unsigned mid = (lo + hi) / 2;
++      if (tbl->filter_states[mid] < state)
++         lo = mid + 1;
++      else
++         hi = mid;
++   }
++   if (lo < tbl->num_filter_entries && tbl->filter_states[lo] == state)
++      return tbl->filter_values[lo];
++   return 0;
++}
++
+ static bool
+ nir_algebraic_automaton(nir_instr *instr, struct util_dynarray *states,
+                         const struct per_op_table *pass_op_table)
+@@ -778,9 +794,8 @@
+             index = tbl->rows[index] * tbl->num_filtered_states;
+          else
+             index *= tbl->num_filtered_states;
+-         if (tbl->filter)
+-            index += tbl->filter[*util_dynarray_element(states, uint16_t,
+-                                                        alu->src[i].src.ssa->index)];
++         index += filter_state(tbl, *util_dynarray_element(states, uint16_t,
++                                                           alu->src[i].src.ssa->index));
+       }
+ 
+       uint16_t *state = util_dynarray_element(states, uint16_t,
+diff --git a/src/compiler/nir/nir_search.h b/src/compiler/nir/nir_search.h
+--- a/src/compiler/nir/nir_search.h
++++ b/src/compiler/nir/nir_search.h
+@@ -159,7 +159,9 @@
+ } nir_search_expression;
+ 
+ struct per_op_table {
+-   const uint16_t *filter;
++   const uint16_t *filter_states;
++   const uint8_t *filter_values;
++   unsigned num_filter_entries;
+    unsigned num_filtered_states;
+    const uint16_t *table;
+    /* If not NULL, table only holds the distinct rows indexed by the last

@@ -13,6 +13,6 @@ while [ $# -gt 0 ]; do
 	args+=("$1"); shift
 done
 
-exec rustc -Zunstable-options --sysroot "$here/sysroot" --target aarch64-switch2-horizon \
+exec rustc -Zunstable-options --sysroot "$here/sysroot" --target aarch64-switch2-horizon -C force-unwind-tables=no \
 	-L "$DEVKITPRO/devkitA64/aarch64-none-elf/lib" -L "$DEVKITPRO/libounce/lib" \
 	"${args[@]}"

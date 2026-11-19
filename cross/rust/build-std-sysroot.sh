@@ -9,7 +9,7 @@ sysroot="$here/sysroot"
 work="${TMPDIR:-/tmp}/uam2rt-std"
 
 export RUST_TARGET_PATH="$here" RUSTC_BOOTSTRAP=1
-export RUSTFLAGS="-Zunstable-options -L $DEVKITPRO/devkitA64/aarch64-none-elf/lib -L $DEVKITPRO/libounce/lib"
+export RUSTFLAGS="-Zunstable-options -C force-unwind-tables=no -L $DEVKITPRO/devkitA64/aarch64-none-elf/lib -L $DEVKITPRO/libounce/lib"
 export CARGO_TARGET_DIR="$work/target"
 
 rm -rf "$work" && mkdir -p "$work/src"
