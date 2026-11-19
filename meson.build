@@ -26,6 +26,7 @@ mesa = subproject('mesa',
 		'tools=',
 		'build-tests=false',
 		'werror=false',
+		'allow-fallback-for=libdrm,perfetto',
 	],
 )
 

@@ -1,0 +1,13 @@
+diff --git a/src/util/blake3/meson.build b/src/util/blake3/meson.build
+index 767da2c..64acb50 100644
+--- a/src/util/blake3/meson.build
++++ b/src/util/blake3/meson.build
+@@ -5,7 +5,7 @@ files_blake3 = [
+ ]
+ blake3_defs = []
+ 
+-is_windows = host_machine.system() == 'windows'
++is_windows = ['windows', 'cygwin'].contains(host_machine.system())
+ is_msvc = meson.get_compiler('c').get_id() == 'msvc'
+ cpu_family = host_machine.cpu_family()
+ 
