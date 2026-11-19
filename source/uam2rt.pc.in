@@ -1,0 +1,9 @@
+prefix=${pcfiledir}/../..
+includedir=${prefix}/include
+libdir=${prefix}/lib
+
+Name: uam2rt
+Description: SPIR-V to DKSH runtime shader compiler for drako3d
+Version: @VERSION@
+Libs: -L${libdir} -luam2rt -lstdc++
+Cflags: -I${includedir}

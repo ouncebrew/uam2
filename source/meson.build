@@ -38,6 +38,13 @@ if runtime
 		install_dir: get_option('libdir'),
 	)
 	install_headers('../include/uam2rt.h')
+
+	configure_file(
+		input: 'uam2rt.pc.in',
+		output: 'uam2rt.pc',
+		configuration: { 'VERSION': meson.project_version() },
+		install_dir: get_option('libdir') / 'pkgconfig',
+	)
 else
 	uam2 = executable('uam2',
 		files(

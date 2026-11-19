@@ -30,6 +30,7 @@ bindgen_clang_arguments = ['--target=aarch64-none-elf',
 	'-D__SWITCH__', '-D__SWITCH2__', '-D_GNU_SOURCE']
 
 [built-in options]
+prefix = dkp / 'portlibs/switch2'
 buildtype = 'minsize'
 b_ndebug = 'true'
 c_args = cflags

@@ -44,3 +44,18 @@ python3 with mako, flex, bison, SPIRV-Tools, zlib, zstd, libdrm, and expat.
 meson setup build
 ninja -C build
 ```
+
+### libuam2rt
+
+`libuam2rt` is a static library for homebrew to link against that compiles SPIR-V to DKSH at
+runtime (see `include/uam2rt.h`).
+
+To build:
+```
+meson setup build-switch2 --cross-file cross/switch2.cross -Druntime=true
+ninja -C build-switch2 install
+```
+
+This installs `libuam2rt.a`, `uam2rt.h`, and `uam2rt.pc` into `$DEVKITPRO/portlibs/switch2`.
+
+It can be easily linked into applications via -luam2rt -lstdc++ linker flags or `pkg-config --libs uam2rt`
