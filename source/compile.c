@@ -212,6 +212,15 @@ bool uam2_compile_spirv(const uint32_t* words, size_t num_words, enum uam2_stage
 	NIR_PASS(_, nir, nir_opt_deref);
 	nir_remove_non_entrypoints(nir);
 
+	// Borrowed from Mesa's vk_spirv_to_nir
+	NIR_PASS(_, nir, nir_lower_variable_initializers, ~0);
+	NIR_PASS(_, nir, nir_split_var_copies);
+	NIR_PASS(_, nir, nir_split_per_member_structs);
+	NIR_PASS(_, nir, nir_remove_dead_variables,
+		nir_var_shader_in | nir_var_shader_out | nir_var_system_value, NULL);
+	nir_gather_clip_cull_distance_sizes_from_vars(nir);
+	NIR_PASS(_, nir, nir_merge_clip_cull_distance_vars);
+
 	const nir_opt_access_options access_opts = { .is_vulkan = true };
 	NIR_PASS(_, nir, nir_opt_access, &access_opts);
 
