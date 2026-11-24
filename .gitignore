@@ -2,3 +2,4 @@
 /subprojects/*
 !/subprojects/mesa.wrap
 !/subprojects/packagefiles/
+/cross
